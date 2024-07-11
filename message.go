@@ -1,6 +1,9 @@
 package main
 
 import (
+	"net/url"
+	"regexp"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
@@ -33,7 +36,7 @@ func NewMessage(app fyne.App, msg *Msg, del func(), clr func()) *Message {
 	if msg.Type == "markdown" {
 		content = widget.NewRichTextFromMarkdown(msg.Content)
 	} else {
-		content = widget.NewRichTextWithText(msg.Content)
+		content = createRichTextWithHyperlinks(msg.Content)
 	}
 	content.Wrapping = fyne.TextWrapWord
 
@@ -54,4 +57,34 @@ func NewMessage(app fyne.App, msg *Msg, del func(), clr func()) *Message {
 	window.SetContent(container.NewBorder(container.NewVBox(container.NewPadded(title), container.NewPadded(date), content), buttons, nil, nil))
 	window.Show()
 	return message
+}
+
+func createRichTextWithHyperlinks(content string) *widget.RichText {
+	rich := widget.NewRichText()
+
+	// Regular expression to match URLs
+	urlRegex := regexp.MustCompile(`(https?://[^\s]+)`)
+
+	// Split the content based on URLs
+	segments := urlRegex.Split(content, -1)
+	matches := urlRegex.FindAllString(content, -1)
+
+	for i, segment := range segments {
+		if i < len(matches) {
+			rich.Segments = append(rich.Segments, &widget.TextSegment{Text: segment})
+			link, err := url.Parse(matches[i])
+			if err == nil {
+				rich.Segments = append(rich.Segments, &widget.HyperlinkSegment{
+					Text:     matches[i],
+					URL:      link,
+					TextStyle: fyne.TextStyle{Underline: true},
+					TextColor: theme.PrimaryColor(),
+				})
+			}
+		} else {
+			rich.Segments = append(rich.Segments, &widget.TextSegment{Text: segment})
+		}
+	}
+
+	return rich
 }
