@@ -1,4 +1,4 @@
-name: Build Go Executable
+name: build
 
 on:
   push:
@@ -6,42 +6,22 @@ on:
       - 'v*'
 
 jobs:
-  build:
+  build-go-binary:
     runs-on: ubuntu-latest
-
+    strategy:
+      matrix:
+        goos: [windows] # 需要打包的系统
+        goarch: [amd64, arm64] # 需要打包的架构
+        # exclude: # 排除某些平台和架构
+        #   - goarch: arm64
+        #     goos: windows
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
-
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: '1.21.8'
-
-    - name: Install dependencies
-      run: sudo apt-get update && sudo apt-get install -y \
-            pkg-config \
-            libgl1-mesa-dev \
-            xorg-dev
-
-    - name: Cache Go modules
-      uses: actions/cache@v3
-      with:
-        path: |
-          ~/.cache/go-build
-          ~/go/pkg/mod
-        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-        restore-keys: |
-          ${{ runner.os }}-go-
-
-    - name: Install Go modules
-      run: go mod download
-
-    - name: Build executable
-      run: GOOS=linux GOARCH=amd64 go build -o PushClient
-
-    - name: Upload artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: PushClient
-        path: PushClient
+      - uses: actions/checkout@v3
+      - uses: wangyoucao577/go-release-action@v1.30
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }} # 一个默认的变量，用来实现往 Release 中添加文件
+          goos: ${{ matrix.goos }}
+          goarch: ${{ matrix.goarch }}
+          goversion: 1.21.8 # 可以指定编译使用的 Golang 版本
+          binary_name: "PushMeClient" # 可以指定二进制文件的名称
+          extra_files: LICENSE README.md # 需要包含的额外文件
