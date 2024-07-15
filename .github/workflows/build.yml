@@ -1,29 +1,48 @@
-name: Generate release assets
+name: Build Go Executable
 
 on:
-  release:
-    types: [published]
-
-env:
-  CGO_ENABLED: 0
-
-permissions:
-  contents: write
+  push:
+    tags:
+      - 'v*'
 
 jobs:
-  releases-matrix:
-    name: Release precompiled binaries
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        goos: [windows]
-        goarch: [amd64, arm64]
+  build:
+    runs-on: windows-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: wangyoucao577/go-release-action@v1.51
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          goos: ${{ matrix.goos }}
-          goarch: ${{ matrix.goarch }}
-          goversion: "1.21"
-          sha256sum: true
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.22'
+
+    - name: Install dependencies
+      run: choco install mingw
+
+    - name: Cache Go modules
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
+    - name: Install Go modules
+      run: go mod download
+
+    - name: Build executable
+      run: |
+        set CGO_ENABLED=1
+        set GOOS=windows
+        set GOARCH=amd64
+        go build -o myapp.exe
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: myapp
+        path: myapp.exe
